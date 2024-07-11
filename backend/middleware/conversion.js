@@ -1,25 +1,31 @@
 const sharp = require('sharp')
 
+// Middleware de redimmensionnement
 module.exports = async (req, res, next) => {
 
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' })
-  }
+    // Vérification de l'existance du fichier
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' })
+    }
 
-  const { buffer, originalname } = req.file
-  const name = originalname.split('.')[0]
-  const ref = `${name}-${Date.now()}.webp`
+    // Récupération des éléments
+    const { buffer, originalname } = req.file
 
-  try {
-    await sharp(buffer)
-    .webp({ quality: 20 })
-    .toFile('./images/' + ref)
+    // Renommage
+    const name = originalname.split('.')[0]
+    const ref = `${name}-${Date.now()}.webp`
 
-    req.file.filename = ref
-    req.file.path = `./images/${ref}`
-    next()
+    try {
+        // Redimensionnement de l'image
+        await sharp(buffer)
+        .webp({ quality: 20 })
+        .toFile('./images/' + ref)
 
-  } catch (error) {
-    res.status(400).json({ error: 'Image processing failed' })
-  }
+        req.file.filename = ref
+        req.file.path = `./images/${ref}`
+        next()
+
+    } catch (error) {
+        res.status(400).json({ error: 'Image processing failed' })
+    }
 }
