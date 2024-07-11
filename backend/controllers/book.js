@@ -8,36 +8,29 @@ exports.createBook = async (req, res, next) => {
   delete bookObject._id
   delete bookObject._userId
 
-  const { path: path, filename: filename } = req.file
-  const name = filename.split('.')[0]
+
+  const { buffer, originalname } = req.file
+  const name = originalname.split('.')[0]
   const ref = `${name}-${Date.now()}.webp`
 
-  await sharp(path)
-  .webp({ quality: 20 })
-  .toFile("./images/" + ref)
+  try {
+    await sharp(buffer)
+    .webp({ quality: 20 })
+    .toFile('./images/' + ref)
 
-  // Supprimez le fichier original après la conversion
-  fs.unlink(path, (error) => {
-    if(error) {
-      console.error('Erreur lors de la suppression du fichier temporaire :', error);
-    }
-  })
+    // Créer un nouvel objet Book avec l'URL de l'image WebP
+    const book = new Book({
+      ...bookObject,
+      userId: req.auth.userId,
+      imageUrl: `${req.protocol}://${req.get('host')}/images/${ref}`
+    })
+    
+    await book.save()
 
-  // Créer un nouvel objet Book avec l'URL de l'image WebP
-  const book = new Book({
-    ...bookObject,
-    userId: req.auth.userId,
-    imageUrl: `${req.protocol}://${req.get('host')}/images/${ref}`
-  })
-  
-  await book.save()
-  .then(() => { 
     res.status(201).json({message: 'Objet enregistré !'})
-  })
-  .catch(error => { 
-    res.status(400).json( { error })
-  })
-
+  } catch (error) { 
+    res.status(400).json({error})
+  }
 }
 
 exports.getOneBook = (req, res, next) => {
@@ -51,16 +44,18 @@ exports.getOneBook = (req, res, next) => {
 }
 
 exports.modifyBook = (req, res, next) => {
+
   const bookObject = req.file ? {
     ...JSON.parse(req.body.book),
     imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
   } : { ...req.body }
 
   delete bookObject._userId
+
   Book.findOne({_id: req.params.id})
   .then((book) => {
     if (book.userId != req.auth.userId) {
-      res.status(401).json({ message : 'Not authorized'})
+      res.status(403).json({ message : 'Not authorized'})
     } else {
       Book.updateOne({ _id: req.params.id}, { ...bookObject, _id: req.params.id})
       .then(() => res.status(200).json({message : 'Objet modifié!'}))
@@ -103,16 +98,13 @@ exports.getAllBooks = (req, res, next) => {
 }
 
 exports.rateBook = (req, res, next) => {
-  const bookId = req.params.id;
-  const userId = req.auth.userId;
-  const grade = parseInt(req.body.grade, 10);
 
-  Book.findOne({_id: bookId})
+  Book.findOne({_id: req.params.id})
   .then((book) => {
 
     const newRating = {
-      userId: userId,
-      grade: grade
+      userId: req.auth.userId,
+      grade: req.body.rating
     }
 
     book.ratings.push(newRating)
@@ -142,9 +134,9 @@ exports.bestRating = (req, res, next) => {
   .sort({ averageRating: -1 })  // Tri par note moyenne décroissante
   .limit(3)
   .then(books => {
-    res.status(200).json(books);
+    res.status(200).json(books)
   })
   .catch(error => {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message })
   });
 }

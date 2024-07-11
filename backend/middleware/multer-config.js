@@ -7,9 +7,9 @@ const MIME_TYPES = {
   'image/webp': 'webp'
 }
 
-const storage = multer.diskStorage({
+const storage = multer.memoryStorage({
   destination: (req, file, callback) => {
-    callback(null, 'images');
+    callback(null, 'images')
   },
   filename: (req, file, callback) => {
     const name = file.originalname.split(' ').join('_').split('.')[0]
