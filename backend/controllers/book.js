@@ -32,14 +32,12 @@ exports.getOneBook = (req, res, next) => {
 }
 
 // PUT => Modification d'un livre
-exports.modifyBook = async (req, res, next) => {
-
-  const ref = req.file.filename
+exports.modifyBook = (req, res, next) => {
 
   // Récupération de la requête et nettoyage
   const bookObject = req.file ? {
     ...JSON.parse(req.body.book),
-    imageUrl: `${req.protocol}://${req.get('host')}/images/${ref}`
+    imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
   } : { ...req.body }
 
   delete bookObject._userId
@@ -53,13 +51,15 @@ exports.modifyBook = async (req, res, next) => {
       res.status(403).json({ message : 'Not authorized'})
     } else {
 
-      // Suppression ancienne image
-      const exName = book.imageUrl.split('/images/')[1]
-      fs.unlink(`images/${exName}`, () => {})
+      if (req.file) {
+        // Suppression ancienne image si changement
+        const fileName = book.imageUrl.split('/images/')[1]
+        fs.unlink(`images/${fileName}`, () => {})
+      }
 
       // Mise à jour du livre
       Book.updateOne({ _id: req.params.id}, { ...bookObject, _id: req.params.id})
-      .then(() => res.status(200).json({message : 'Objet modifié!'}))
+      .then(() => res.status(200).json({message : 'Objet modifié !'}))
       .catch(error => res.status(401).json({ error }))
     }
   })
@@ -142,8 +142,7 @@ exports.rateBook = (req, res, next) => {
     })
     .catch((error) => {
       res.status(404).json({error: error})
-    }
-    )
+    })
   } else {
     res.status(400).json({ message: 'La note doit être comprise entre 1 et 5' })
   }

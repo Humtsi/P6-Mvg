@@ -16,6 +16,6 @@ const storage = multer.memoryStorage({
     const extension = MIME_TYPES[file.mimetype]
     callback(null, name + '.' + extension)
   }
-});
+})
 
 module.exports = multer({storage: storage}).single('image')
